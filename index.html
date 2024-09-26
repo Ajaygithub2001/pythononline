@@ -135,18 +135,24 @@
 
     // Handle Python input() calls by replacing them with browser inputs
     async function handlePythonInput(script) {
+      // Regex to detect all input() calls
       const inputRegex = /input\((.*?)\)/g;
       let inputs = [];
       let match;
+
+      // Collect all inputs before replacing them
       while ((match = inputRegex.exec(script)) !== null) {
         let inputPrompt = match[1] ? match[1].replace(/['"]+/g, '') : '';
+        // Prompt user for input
         let userInput = prompt(inputPrompt || "Input required:");
         inputs.push(userInput);
       }
-      // Replace input() calls with the user's input
+
+      // Replace input() calls in the script with the provided values
       let modifiedScript = script.replace(inputRegex, function() {
         return `"${inputs.shift()}"`;
       });
+
       return modifiedScript;
     }
 
