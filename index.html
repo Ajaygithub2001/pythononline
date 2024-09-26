@@ -75,7 +75,7 @@
         const reader = new FileReader();
         reader.onload = function(e) {
           const fileContent = e.target.result;
-          pyodide.FS.writeFile(file.name, fileContent);  // Write the file to Pyodide's filesystem
+          pyodide.FS.writeFile('/' + file.name, fileContent);  // Write the file to Pyodide's filesystem in the root folder
           const outputElem = document.getElementById('output');
           outputElem.textContent += `\nUploaded ${file.name} to virtual filesystem.`;
         };
@@ -98,7 +98,7 @@
             let args = command.split(' ');
             if (args.length === 2 && args[1].endsWith('.py')) {
               // Attempt to run the Python file if it exists
-              let filename = args[1];
+              let filename = '/' + args[1];  // Ensure the file path starts from the root folder
               try {
                 let fileContent = pyodide.FS.readFile(filename, { encoding: 'utf8' });
                 let result = await pyodide.runPythonAsync(fileContent);
