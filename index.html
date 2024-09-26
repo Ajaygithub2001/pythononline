@@ -108,6 +108,8 @@
               let filename = '/' + args[1];  // Ensure the file path starts from the root folder
               try {
                 let fileContent = pyodide.FS.readFile(filename, { encoding: 'utf8' });
+                // Intercept input() calls
+                fileContent = await handlePythonInput(fileContent);
                 let result = await pyodide.runPythonAsync(fileContent);
                 outputElem.textContent += `\n${result}`;
               } catch (error) {
@@ -129,6 +131,21 @@
         // Clear the input field
         event.target.value = '';
       }
+    }
+
+    // Handle Python input() calls by replacing them with browser inputs
+    async function handlePythonInput(script) {
+      const inputRegex = /input\((.*?)\)/g;
+      let inputs = [];
+      let match;
+      while ((match = inputRegex.exec(script)) !== null) {
+        let inputPrompt = match[1] ? eval(match[1]) : '';
+        let userInput = prompt(inputPrompt || "Input required:");
+        inputs.push(userInput);
+      }
+      // Replace input() calls with the user's input
+      let modifiedScript = script.replace(inputRegex, (_, inputText, index) => `"${inputs.shift()}"`);
+      return modifiedScript;
     }
 
     // Execute Python code
