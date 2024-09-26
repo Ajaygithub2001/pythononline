@@ -144,7 +144,9 @@
         inputs.push(userInput);
       }
       // Replace input() calls with the user's input
-      let modifiedScript = script.replace(inputRegex, (_, inputText, index) => `"${inputs.shift()}"`);
+      let modifiedScript = script.replace(inputRegex, function() {
+        return `"${inputs.shift()}"`;
+      });
       return modifiedScript;
     }
 
