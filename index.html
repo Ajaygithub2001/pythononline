@@ -56,7 +56,7 @@
   <!-- Terminal Interface -->
   <div id="terminal">
     <pre id="output">Online Python Terminal with File Upload (Pyodide)\nType Python code below:</pre>
-    <input id="command" type="text" placeholder="Enter Python code or py <filename.py> to run...">
+    <input id="command" type="text" placeholder="Enter Python code or commands (ls, pwd, py <filename.py>)">
   </div>
 
   <script>
@@ -93,11 +93,18 @@
           // Add the command to the terminal output
           outputElem.textContent += `\n$ ${command}`;
 
-          // Check if the command is "py run.py" to run a Python file
-          if (command.startsWith('py ')) {
+          if (command === 'ls') {
+            // List files in the current directory
+            let files = pyodide.FS.readdir('/');
+            outputElem.textContent += `\n${files.join('\n')}`;
+          } else if (command === 'pwd') {
+            // Show current working directory
+            let currentPath = pyodide.FS.cwd();
+            outputElem.textContent += `\n${currentPath}`;
+          } else if (command.startsWith('py ')) {
+            // Run the Python file
             let args = command.split(' ');
             if (args.length === 2 && args[1].endsWith('.py')) {
-              // Attempt to run the Python file if it exists
               let filename = '/' + args[1];  // Ensure the file path starts from the root folder
               try {
                 let fileContent = pyodide.FS.readFile(filename, { encoding: 'utf8' });
