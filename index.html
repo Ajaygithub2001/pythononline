@@ -139,7 +139,7 @@
       let inputs = [];
       let match;
       while ((match = inputRegex.exec(script)) !== null) {
-        let inputPrompt = match[1] ? eval(match[1]) : '';
+        let inputPrompt = match[1] ? match[1].replace(/['"]+/g, '') : '';
         let userInput = prompt(inputPrompt || "Input required:");
         inputs.push(userInput);
       }
