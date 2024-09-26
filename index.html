@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Online Python Terminal</title>
+  <title>Online Python Terminal with File Upload</title>
   <script src="https://cdn.jsdelivr.net/pyodide/v0.21.3/full/pyodide.js"></script>
   <style>
     body {
@@ -15,21 +15,23 @@
       align-items: center;
       height: 100vh;
       margin: 0;
+      flex-direction: column;
     }
     #terminal {
       width: 80%;
-      height: 70%;
+      height: 60%;
       background-color: #3b4252;
       padding: 10px;
       border-radius: 8px;
       overflow-y: auto;
       box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.5);
+      margin-bottom: 10px;
     }
     pre {
       margin: 0;
       white-space: pre-wrap;
     }
-    input {
+    input[type="text"] {
       width: 100%;
       background-color: transparent;
       border: none;
@@ -38,16 +40,23 @@
       font-size: 1em;
       outline: none;
     }
-    input::placeholder {
+    input[type="text"]::placeholder {
       color: #88c0d0;
+    }
+    input[type="file"] {
+      margin-bottom: 10px;
     }
   </style>
 </head>
 <body>
 
+  <!-- File Upload -->
+  <input type="file" id="fileUpload" multiple>
+  
+  <!-- Terminal Interface -->
   <div id="terminal">
-    <pre id="output">Online Python Terminal (Pyodide)\nType Python code below:</pre>
-    <input id="command" type="text" placeholder="Enter Python code here...">
+    <pre id="output">Online Python Terminal with File Upload (Pyodide)\nType Python code below:</pre>
+    <input id="command" type="text" placeholder="Enter Python code or py <filename.py> to run...">
   </div>
 
   <script>
@@ -57,6 +66,21 @@
     async function loadPyodideAndPackages() {
       pyodide = await loadPyodide(); // Load the Pyodide runtime
       console.log("Pyodide loaded!");
+    }
+
+    // Handle file uploads and save them to the virtual filesystem
+    function handleFileUpload(event) {
+      const files = event.target.files;
+      for (let file of files) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const fileContent = e.target.result;
+          pyodide.FS.writeFile(file.name, fileContent);  // Write the file to Pyodide's filesystem
+          const outputElem = document.getElementById('output');
+          outputElem.textContent += `\nUploaded ${file.name} to virtual filesystem.`;
+        };
+        reader.readAsText(file);  // Read file as text
+      }
     }
 
     // Execute Python code or handle custom commands
@@ -115,26 +139,10 @@
 
     // Add event listener for the command input
     document.getElementById('command').addEventListener('keydown', handleCommand);
-  </script>
 
-  <!-- Example script creation: -->
-  <script>
-    // Add an example Python script to the virtual filesystem
-    async function addExampleScript() {
-      await pyodide.loadPackage('micropip');
-      const scriptContent = `
-def main():
-    print("Hello from run.py!")
-    
-if __name__ == "__main__":
-    main()
-`;
-      pyodide.FS.writeFile('run.py', scriptContent);  // Write the Python script to the virtual filesystem
-      console.log("Script run.py created in the virtual filesystem.");
-    }
+    // Add event listener for file upload
+    document.getElementById('fileUpload').addEventListener('change', handleFileUpload);
 
-    // Wait for Pyodide to load before creating the file
-    loadPyodideAndPackages().then(addExampleScript);
   </script>
 
 </body>
