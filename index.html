@@ -1,181 +1,86 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Online Python Terminal with File Upload</title>
-  <script src="https://cdn.jsdelivr.net/pyodide/v0.21.3/full/pyodide.js"></script>
-  <style>
-    body {
-      font-family: monospace;
-      background-color: #2e3440;
-      color: #d8dee9;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-      flex-direction: column;
-    }
-    #terminal {
-      width: 80%;
-      height: 60%;
-      background-color: #3b4252;
-      padding: 10px;
-      border-radius: 8px;
-      overflow-y: auto;
-      box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.5);
-      margin-bottom: 10px;
-    }
-    pre {
-      margin: 0;
-      white-space: pre-wrap;
-    }
-    input[type="text"] {
-      width: 100%;
-      background-color: transparent;
-      border: none;
-      color: #d8dee9;
-      font-family: inherit;
-      font-size: 1em;
-      outline: none;
-    }
-    input[type="text"]::placeholder {
-      color: #88c0d0;
-    }
-    input[type="file"] {
-      margin-bottom: 10px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Run Python in Pyodide</title>
+    <!-- Load Pyodide from CDN -->
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.22.1/full/pyodide.js"></script>
 </head>
 <body>
+    <h1>Run Python Code with Pyodide</h1>
 
-  <!-- File Upload -->
-  <input type="file" id="fileUpload" multiple>
-  
-  <!-- Terminal Interface -->
-  <div id="terminal">
-    <pre id="output">Online Python Terminal with File Upload (Pyodide)\nType Python code below:</pre>
-    <input id="command" type="text" placeholder="Enter Python code or commands (ls, pwd, py <filename.py>)">
-  </div>
+    <!-- File upload input -->
+    <input type="file" id="pythonFile" accept=".py">
+    
+    <!-- Button to run the uploaded script -->
+    <button onclick="runPythonFile()">Run Python Script</button>
+    
+    <!-- Output area -->
+    <h3>Output:</h3>
+    <pre id="output"></pre>
 
-  <script>
-    let pyodide = null;
+    <script>
+        let pyodide;
 
-    // Load Pyodide and initialize the Python environment
-    async function loadPyodideAndPackages() {
-      pyodide = await loadPyodide(); // Load the Pyodide runtime
-      console.log("Pyodide loaded!");
-    }
-
-    // Handle file uploads and save them to the virtual filesystem
-    function handleFileUpload(event) {
-      const files = event.target.files;
-      for (let file of files) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          const fileContent = e.target.result;
-          pyodide.FS.writeFile('/' + file.name, fileContent);  // Write the file to Pyodide's filesystem in the root folder
-          const outputElem = document.getElementById('output');
-          outputElem.textContent += `\nUploaded ${file.name} to virtual filesystem.`;
-        };
-        reader.readAsText(file);  // Read file as text
-      }
-    }
-
-    // Execute Python code or handle custom commands
-    async function handleCommand(event) {
-      if (event.key === 'Enter') {
-        const command = event.target.value.trim();
-        const outputElem = document.getElementById('output');
-
-        if (command) {
-          // Add the command to the terminal output
-          outputElem.textContent += `\n$ ${command}`;
-
-          if (command === 'ls') {
-            // List files in the current directory
-            let files = pyodide.FS.readdir('/');
-            outputElem.textContent += `\n${files.join('\n')}`;
-          } else if (command === 'pwd') {
-            // Show current working directory
-            let currentPath = pyodide.FS.cwd();
-            outputElem.textContent += `\n${currentPath}`;
-          } else if (command.startsWith('py ')) {
-            // Run the Python file
-            let args = command.split(' ');
-            if (args.length === 2 && args[1].endsWith('.py')) {
-              let filename = '/' + args[1];  // Ensure the file path starts from the root folder
-              try {
-                let fileContent = pyodide.FS.readFile(filename, { encoding: 'utf8' });
-                // Intercept input() calls
-                fileContent = await handlePythonInput(fileContent);
-                let result = await pyodide.runPythonAsync(fileContent);
-                outputElem.textContent += `\n${result}`;
-              } catch (error) {
-                outputElem.textContent += `\nError: File '${filename}' not found.`;
-              }
-            } else {
-              outputElem.textContent += `\nError: Invalid command or file.`;
-            }
-          } else {
-            // Run the entered Python code directly
-            let result = await runPythonCode(command);
-            outputElem.textContent += `\n${result}`;
-          }
+        // Initialize Pyodide
+        async function loadPyodideAndPackages() {
+            pyodide = await loadPyodide();
+            console.log("Pyodide loaded");
         }
 
-        // Scroll to the bottom of the terminal
-        document.getElementById('terminal').scrollTop = document.getElementById('terminal').scrollHeight;
+        // Load Pyodide when the page loads
+        window.onload = loadPyodideAndPackages;
 
-        // Clear the input field
-        event.target.value = '';
-      }
-    }
+        // Function to handle file upload and execution
+        async function runPythonFile() {
+            const fileInput = document.getElementById('pythonFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a Python file to upload.');
+                return;
+            }
 
-    // Handle Python input() calls by replacing them with browser inputs
-    async function handlePythonInput(script) {
-      // Regex to detect all input() calls
-      const inputRegex = /input\((.*?)\)/g;
-      let inputs = [];
-      let match;
+            const reader = new FileReader();
+            reader.onload = async function(event) {
+                const pythonCode = event.target.result;
 
-      // Collect all inputs before replacing them
-      while ((match = inputRegex.exec(script)) !== null) {
-        let inputPrompt = match[1] ? match[1].replace(/['"]+/g, '') : '';
-        // Prompt user for input
-        let userInput = prompt(inputPrompt || "Input required:");
-        inputs.push(userInput);
-      }
+                try {
+                    // Define the input function in Python using the JavaScript window.prompt
+                    pyodide.globals.set("window", window);
+                    pyodide.runPython(`
+                        import builtins
+                        import sys
+                        from io import StringIO
 
-      // Replace input() calls in the script with the provided values
-      let modifiedScript = script.replace(inputRegex, function() {
-        return `"${inputs.shift()}"`;
-      });
+                        # Redirect stdout to capture print() output
+                        sys.stdout = StringIO()
 
-      return modifiedScript;
-    }
+                        # Custom input function using window.prompt
+                        builtins.input = lambda prompt='': window.prompt(prompt)
+                    `);
 
-    // Execute Python code
-    async function runPythonCode(code) {
-      try {
-        let result = await pyodide.runPythonAsync(code);
-        return result;
-      } catch (error) {
-        return error.toString();
-      }
-    }
+                    // Create the file in the Pyodide virtual file system
+                    pyodide.FS.writeFile('/temp_script.py', pythonCode);
+                    
+                    // Run the Python script and capture output
+                    await pyodide.runPythonAsync(`
+                        exec(open('/temp_script.py').read())
+                    `);
 
-    // Load Pyodide on page load
-    loadPyodideAndPackages();
+                    // Get the output from sys.stdout
+                    const output = pyodide.runPython(`
+                        sys.stdout.getvalue()
+                    `);
 
-    // Add event listener for the command input
-    document.getElementById('command').addEventListener('keydown', handleCommand);
-
-    // Add event listener for file upload
-    document.getElementById('fileUpload').addEventListener('change', handleFileUpload);
-
-  </script>
-
+                    document.getElementById('output').textContent = output;
+                } catch (error) {
+                    document.getElementById('output').textContent = error.toString();
+                }
+            };
+            reader.readAsText(file);
+        }
+    </script>
 </body>
 </html>
